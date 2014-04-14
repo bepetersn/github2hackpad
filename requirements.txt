@@ -8,3 +8,4 @@ pytest==2.5.2
 -e git+https://github.com/bepetersn/python_hackpad_api#egg=python_hackpad_api-master
 requests==2.2.1
 wsgiref==0.1.2
+pyyaml==3.11
