@@ -1,0 +1,2 @@
+-e git+https://github.com/bepetersn/python_hackpad_api#egg=python_hackpad_api
+pytest==1.4.20
