@@ -7,6 +7,8 @@ class TestGithubWrapper:
 
     def test_pull_in_simple_issues(self):
 
+        # Define all of my test data / desired results
+
         my_user = 'user'
         my_pw = 'password'
         my_label = 'in progress'
@@ -33,6 +35,8 @@ class TestGithubWrapper:
                 'feature'
         ]
 
+        # Mock all the gitub APIs I'm going to use
+
         mock_session = Mock()
         mock_organization = Mock()
         mock_repos = [Mock() for r in range(4)]
@@ -51,8 +55,10 @@ class TestGithubWrapper:
         mock_session.get_organization.return_value = mock_organization
         mock_organization.get_repos.return_value = mock_repos
 
+        # Actually test the GithubWrapper class
+
         github = GithubWrapper(my_user, my_pw, testing_session=mock_session)
-        issues = github.get_tagged_issues(my_label, mock_repos, my_org)
+        issues = github.get_filtered_issues(my_label, mock_repos, my_org)
 
         assert issues == set(mock_issues)
 

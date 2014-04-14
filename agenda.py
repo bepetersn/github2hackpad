@@ -13,24 +13,24 @@ class GithubWrapper:
         else:
             self.session = Github(self.user, self.password)
 
-    def get_tagged_issues(self, label, include_repos, org_name):
+    def get_filtered_issues(self, label, include_repos, org_name):
 
-        tagged_issues = set([])
-        tagged_repos = set([])
+        filtered_issues = set([])
+        filtered_repos = set([])
 
         org = self.session.get_organization(org_name)
         all_repos = org.get_repos()
 
         for r in all_repos:
             if self.filter_repo_by_include(r, include_repos):
-                tagged_repos.add(r)
+                filtered_repos.add(r)
 
-        for r in tagged_repos:
+        for r in filtered_repos:
             result = self.filter_issues_by_label(r.get_issues(), label)
             for issue in result:
-                tagged_issues.add(issue)
+                filtered_issues.add(issue)
 
-        return tagged_issues
+        return filtered_issues
 
     def filter_repo_by_include(self, repo, include_repos):
         for include in include_repos:
@@ -89,7 +89,7 @@ class Settings:
         pass
 
     def configure(self, org_name='sc3', label='in progress'):
-        return
+        return 
 
     def get_credentials(self, file):
         return
