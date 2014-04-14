@@ -48,7 +48,7 @@ class HackpadWrapper:
         pass
 
     def create_pad(self, name, content):
-        return
+        return None
 
 
 class Agenda:

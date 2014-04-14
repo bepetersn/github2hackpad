@@ -1,5 +1,10 @@
--e git+https://github.com/bepetersn/python_hackpad_api#egg=python_hackpad_api
-pytest==1.4.20
-pygithub==1.24.1
+PyGithub==1.24.1
+argparse==1.2.1
+httplib2==0.8
 mock==1.0.1
-mock==1.0.1
+oauth2==1.5.211
+py==1.4.20
+pytest==2.5.2
+-e git+https://github.com/bepetersn/python_hackpad_api@99f9226bbddaac01ac4083de5c2037a3a2a60bd3#egg=python_hackpad_api-master
+requests==2.2.1
+wsgiref==0.1.2

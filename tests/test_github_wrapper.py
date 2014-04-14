@@ -4,18 +4,8 @@ from agenda import GithubWrapper
 
 class TestGithubWrapper:
 
-    """ abstractions: 
 
-        two interfaces
-        credentials
-        github issue,
-        github project,
-        message
-        whole agenda
-    """
-
-
-    def test_basic_issues(self):
+    def test_pull_in_simple_issues(self):
 
         my_user = 'user'
         my_pw = 'password'
