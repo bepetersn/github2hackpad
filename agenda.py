@@ -1,14 +1,45 @@
-import PyGithub
+from github import Github
 from hackpad_api.hackpad import Hackpad
 
 
 class GithubWrapper:
 
-    def __init__(self, user, password):
-        pass
+    def __init__(self, user, password, testing_session=None):
+        self.user = user
+        self.password = password
 
-    def get_tagged_issues(self, tag, projects, org):
-        pass
+        if testing_session:
+           self.session = testing_session
+        else:
+            self.session = Github(self.user, self.password)
+
+    def get_tagged_issues(self, label, include_repos, org_name):
+
+        tagged_issues = set([])
+        tagged_repos = set([])
+
+        org = self.session.get_organization(org_name)
+        all_repos = org.get_repos()
+
+        for r in all_repos:
+            if self.filter_repo_by_include(r, include_repos):
+                tagged_repos.add(r)
+
+        for r in tagged_repos:
+            result = self.filter_issues_by_label(r.get_issues(), label)
+            for issue in result:
+                tagged_issues.add(issue)
+
+        return tagged_issues
+
+    def filter_repo_by_include(self, repo, include_repos):
+        for include in include_repos:
+            yield include.name 
+
+    def filter_issues_by_label(self, issues, label):
+        for i in issues:
+            if label in [l.name for l in i.labels]:
+                yield i
 
 
 class HackpadWrapper:
@@ -17,7 +48,7 @@ class HackpadWrapper:
         pass
 
     def create_pad(self, name, content):
-        pass
+        return
 
 
 class Agenda:
@@ -26,10 +57,10 @@ class Agenda:
         pass
 
     def generate(self, date, tag, projects):
-        pass
+        return
 
     def publish(self, date, projects, tag):
-        pass
+        return
 
 
 class Messages:
@@ -57,9 +88,9 @@ class Settings:
     def __init__(self):
         pass
 
-    def configure(self, org='sc3', tag='in progress'):
-        pass
+    def configure(self, org_name='sc3', label='in progress'):
+        return
 
     def get_credentials(self, file):
-        pass
+        return
 
