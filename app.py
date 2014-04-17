@@ -3,7 +3,8 @@ from github.GithubException import GithubException
 from hackpad_api.hackpad import Hackpad
 from datetime import datetime
 
-import yaml
+import yaml, logging, sys
+
 
 class GithubWrapper(object):
 
@@ -48,27 +49,27 @@ class GithubWrapper(object):
             all_repos = org.get_repos()
 
             for r in all_repos:
-                print "found repo: " + r.name
+                logging.debug("found repo: %s" % r.name)
                 if self.filter_repo_by_include(r, self.projects):
                     filtered_repos.append(r)
 
             for r in filtered_repos:
-                print "trying repo: " + r.name
+                logging.debug("trying repo: %s" % r.name)
                 if r.has_issues and not r.private:
-                    print "included repo: " + r.name
+                    logging.debug("included repo: %s" % r.name)
                     result = self.filter_issues_by_label(
                                     r.get_issues(), self.label)
-                    print "issues: " + str(list(result))
+                    logging.debug("issues: %s" % str(list(result)))
                     filtered_issues.append(tuple(result))
 
         except GithubException as e:
-            print("Problem with Github: ", e.message)
+            loggin.error("Problem with Github: %s" % e.message)
             return False, False
         except StandardError as e:
-            print(e.message)
+            logging.error(e.message)
             return False, False
 
-        print filtered_issues, filtered_repos
+        # logging.debug([r.name for r in filtered_repos])
         return filtered_issues, filtered_repos
 
     def filter_repo_by_include(self, repo, include_repos):
@@ -104,7 +105,7 @@ class HackpadWrapper(object):
                return result['padId']
 
         except StandardError as e:
-            print(e)
+            logging.error("%s" % e.messages)
             return False
 
 
@@ -113,19 +114,22 @@ class Agenda(object):
     """ Synthesis class pulling formatting, credentials, and github,
         and hackpad classes together. """
 
+
     def __init__(self, hp, gh, messages, settings):
         self.hp = hp
         self.gh = gh
         self.messages = messages
         self.settings = settings
 
-    def load_settings(self):
+
+    def load_projects_setting(self):
         return self.settings.config['github_projects']
 
-    def generate(self, date=datetime.now(), projects=''):
+
+    def generate(self, date=datetime.today(), projects=''):
 
         if not projects:
-           self.projects = self.load_settings()
+           self.projects = self.load_projects_setting()
 
         title = self.messages.write_title('Active Projects', date)
         content = ""
@@ -139,16 +143,16 @@ class Agenda(object):
                 return False, False
 
         except StandardError as e:
-            print(e)
+            logging.error(e.message)
             return False, False
 
         return title, content
         
 
-    def publish(self, date=datetime.now(), projects=''):
+    def publish(self, date=datetime.today(), projects=''):
 
         if not projects:
-            self.projects = self.load_settings()
+            self.projects = self.load_projects_setting()
 
         title, content = self.generate(date, projects)
         if (title and content):
@@ -156,23 +160,27 @@ class Agenda(object):
             try:
                 result = self.hp.create_pad(title, content)
                 if result:
-                    print "Push to hackpad successful!"
+                    print("Push to hackpad successful!")
                     return True
 
             except StandardError as e:
-                print(e)
+                logging.error(e.message)
                 return False
         else:
+            logging.error("Publishing failed!")
             return False
 
 
 class Messages(object):
 
+    # TODO: Rename this class to better describe what it does
+
     """ Formatting handling class """
+
 
     def __init__(self, formatting={}):
 
-        # Merge this with part of messages with settings
+        # TODO: Merge this with part of messages with settings
         self.formatting = formatting
         self.section_sep = self.format_param('section_sep')
         self.item_sep = self.format_param('item_sep')
@@ -180,6 +188,7 @@ class Messages(object):
         self.heading_md = self.format_param('heading_md')
         self.heading_sm = self.format_param('heading_sm')
         self.item_slice_point = self.format_param('item_slice_point')
+
 
     def format_param(self, param, default=''):
         try:
@@ -189,24 +198,33 @@ class Messages(object):
         finally:
             return default
 
-    def unpack_github_item(self, item):
-        return item.title
 
     def write_section(self, title, items):
-        section = "#%s\n" % title
+        section = "%s\n" % title
         for item in items:
             item = self.unpack_github_item(item)
             section += "- %s\n" % item[:120]
         return section
 
+
     def write_title(self, full_name, date):
-        return "%s: Week of %s" % (full_name, 
-                date.strftime('%m %d, %Y'))
+        return "%s: Week of %s" % (full_name, self.format_date(date))
+
+
+    def unpack_github_item(self, item):
+        return item.title
+
+
+    def format_date(self, d):
+        return d.strftime('%B %dth, %Y')
+
 
 class Settings(object):
 
     """ Credentials handling class; for to not write down my keys 
         and secrets in a public repository. """
+
+    #TODO: replace "/home/brian" with the $HOME env var
 
     def __init__(self, path='/home/brian/.github2hackpad'):
         self.path = path
@@ -215,12 +233,13 @@ class Settings(object):
         try:
             with open(self.path, 'r') as f:
                 self.config = yaml.load(f)
+                self.configure()
         except IOError:
             try:
                 # create empty file
                 open(self.path, 'w').close()
             except IOError as e:
-                self.config = {}
+                pass
         finally:
             if self.config is None:
                 self.config = {}
@@ -230,14 +249,14 @@ class Settings(object):
         with open(self.path, 'w') as f:
             yaml.dump(self.config, f)
 
-    def configure(self, github_user='', github_password='', hackpad_subdomain='',
-                    hackpad_key='', hackpad_secret='', github_org='sc3', 
-                    github_label='in progress', github_projects=['sc3', 
-                                'cookcountyjail', '26thandcalifornia', 
-                                'django-townsquare']):
+
+    def configure(self, github_user='', github_password='', hackpad_key='', 
+                    hackpad_secret='', hackpad_subdomain='', github_org='sc3', 
+                    github_label='', github_projects=[]):
         
-        # fall back to settings if no overrides are set;
-        # TODO: throw an error if no overrides or settings 
+        # Fall back to settings if no overrides are set
+        # TODO: Throw an error if no overrides or settings; 
+        # also provide a convenience function for access.
         if github_user:
             self.config['github_user'] = github_user
         if github_password:
@@ -256,17 +275,23 @@ class Settings(object):
         self.save()
 
 
-def main():
+def main(debug=False):
 
     # TODO: make this main function as skinny as possible
 
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+
     settings = Settings()
-    messages = Messages({'item_slice_point': '120'})
-    settings.configure()
-    hp = HackpadWrapper(settings)
-    gh = GithubWrapper(settings)
-    agenda = Agenda(hp, gh, messages, settings)
-    agenda.publish(datetime.now())
+    agenda = Agenda(
+        HackpadWrapper(settings), 
+        GithubWrapper(settings), 
+        Messages(), settings
+    )
+    agenda.publish()
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == '--debug':
+        main(debug=True)
+    else:
+        main()
