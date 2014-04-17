@@ -1,5 +1,5 @@
 from mock import Mock, call
-from agenda import HackpadWrapper
+from app import HackpadWrapper
 
 class TestHackpadWrapper:
     pass

@@ -1,5 +1,5 @@
 from mock import Mock, call
-from agenda import GithubWrapper
+from app import GithubWrapper, Settings
 
 
 class TestGithubWrapper:
@@ -9,8 +9,8 @@ class TestGithubWrapper:
 
         # Define all of my test data / desired results
 
-        my_user = 'user'
-        my_pw = 'password'
+        my_user = 'g_user'
+        my_pw = 'g_password'
         my_label = 'in progress'
         my_org = 'sc3'
         my_repo_names = ['sc3', 'cookcountyjail', 'django-townsquare', '26thandcalifornia']
@@ -55,12 +55,16 @@ class TestGithubWrapper:
         mock_session.get_organization.return_value = mock_organization
         mock_organization.get_repos.return_value = mock_repos
 
+        # Set Github-related settings; ignore Hackpad stuff
+        my_settings = Settings(path='/tmp/tmp_settings.yml')
+        my_settings.configure(my_user, my_pw, False, False)
+
         # Actually test the GithubWrapper class
 
-        github = GithubWrapper(my_user, my_pw, testing_session=mock_session)
-        issues = github.get_filtered_issues(my_label, mock_repos, my_org)
+        github = GithubWrapper(my_settings, testing_session=mock_session)
+        issues, repos = github.issues_by_repos()
 
-        assert issues == set(mock_issues)
+        assert repos, issues == (mock_repos, mock_issues)
 
 
 

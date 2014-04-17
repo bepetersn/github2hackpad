@@ -11,44 +11,63 @@ class GithubWrapper(object):
         mostly for accessing issues. Allows some filtering of these based on org, repo,
         and label. """
 
-    def __init__(self, user, password, testing_session=None):
-        self.user = user
-        self.password = password
+    def __init__(self, settings, testing_session=None):
+        self.user = settings.config['github_user']
+        self.password = settings.config['github_password']
+        self.org = settings.config['github_org']
+        self.label = settings.config['github_label']
+        self.projects = settings.config['github_projects']
 
         if testing_session:
            self.session = testing_session
         else:
             self.session = Github(self.user, self.password)
 
-    def get_filtered_issues(self, label, include_repos, org_name):
+    def issues_by_repos(self, org='', projects=[],
+                            label=''):
 
-        filtered_issues = set([])
+        """
+            Returns a list of repos and a corresponding list of
+            tuples of those repos' issues, filtered by the label
+            defined in GithubWrapper's settings. 
+
+            Defaults to using the settings-defined org, projects, and label,
+            but this can be overrided with this function. """
+
+        if not org:
+            org = self.org
+        if not projects:
+            projects = self.projects
+        if not label:
+            label = self.label
+
         filtered_repos = set([])
+        filtered_issues = set([])
 
         try:
-            org = self.session.get_organization(org_name)
+            org = self.session.get_organization(self.org)
             all_repos = org.get_repos()
 
             for r in all_repos:
-                if self.filter_repo_by_include(r, include_repos):
+                print "all: " + r.name
+                if self.filter_repo_by_include(r, self.projects):
+                    print "included: " + r.name
                     filtered_repos.add(r)
-                    print [r.name for r in list(filtered_repos)]
 
             for r in filtered_repos:
-                print r.name
-                result = self.filter_issues_by_label(r.get_issues(), label)
-                for issue in result:
-                    filtered_issues.add(issue)
+                if r.has_issues and not r.private:
+                    result = self.filter_issues_by_label(r.get_issues(), self.label)
+                    filtered_issues.add(tuple(result))
+
         except GithubException as e:
-            pass
+            print("Problem with Github: ", e.message)
         except StandardError as e:
             print(e.message)
 
-        return filtered_issues
+        return filtered_repos, filtered_issues
 
     def filter_repo_by_include(self, repo, include_repos):
-        for include in include_repos:
-            yield include.name 
+        return repo.name in include_repos
 
     def filter_issues_by_label(self, issues, label):
         for i in issues:
@@ -96,10 +115,8 @@ class Agenda(object):
         title = self.messages.write_title('', 'Active Projects', date)
         content = ""
         try:
-            for project in projects:
-                issues = self.gh.get_filtered_issues(self.settings.config['github_label'],
-                        project, self.settings.config['github_org'])
-                self.messages.write_section(content, project, issues)
+            issues = self.gh.issues_by_repos(self.settings)
+            self.messages.write_section(content, project, issues)
         except StandardError as e:
             print(e)
 
@@ -160,20 +177,42 @@ class Settings(object):
 
     def __init__(self, path='/home/brian/.github2hackpad'):
         self.path = path
-        self.config = {}
+
         try:
-            with open(self.path) as f:
+            with open(self.path, 'r') as f:
                 self.config = yaml.load(f)
         except IOError:
-            print('unsuccessful loading credentials')
+            try:
+                # create empty file
+                open(self.path, 'w').close()
+            except IOError as e:
+                self.config = {}
+        finally:
+            if self.config is None:
+                self.config = {}
+
 
     def save(self):
-        with open(self.path, "w") as f:
+        with open(self.path, 'w') as f:
             yaml.dump(self.config, f)
 
-    def configure(self, org_name='sc3', label='in progress'):
-        self.config['github_org'] = org_name
-        self.config['github_label'] = label
+    def configure(self, github_user='', github_password='', hackpad_key='', 
+                    hackpad_secret='', github_org='sc3', github_label='in progress', 
+                        github_projects=['sc3', 'cookcountyjail', 
+                        '26thandcalifornia', 'django-townsquare']):
+        
+        if github_user:
+            self.config['github_user'] = github_user
+        if github_password:
+            self.config['github_password'] = github_password
+        if hackpad_key:
+            self.config['hackad_key'] = hackpad_key 
+        if hackpad_secret:
+            self.config['hackpad_secret'] = hackpad_secret
+
+        self.config['github_org'] = github_org
+        self.config['github_label'] = github_label
+        self.config['github_projects'] = github_projects
 
         # NEED MORE STUFF!
 
@@ -186,14 +225,11 @@ def main():
 
     settings = Settings()
     messages = Messages({'item_slice_point': '120'})
-    settings.configure('sc3', 'in_progress')
-    hp = HackpadWrapper(settings.config['github_org'], 
-                        settings.config['hackpad_key'], 
-                        settings.config['hackpad_secret'])
-    gh = GithubWrapper(settings.config['github_username'], 
-                        settings.config['github_password'])
+    settings.configure()
+    hp = HackpadWrapper(settings)
+    gh = GithubWrapper(settings)
     agenda = Agenda(hp, gh, messages, settings)
-    agenda.publish(datetime.now(), ['sc3', 'cookcountyjail', '26thandcalifornia', 'django-townsquare'])
+    agenda.publish(datetime.now())
     # define default projects in settings
 
 if __name__ == '__main__':
