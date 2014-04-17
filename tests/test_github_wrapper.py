@@ -5,7 +5,7 @@ from app import GithubWrapper, Settings
 class TestGithubWrapper:
 
 
-    def test_pull_in_simple_issues(self):
+    def test_pull_in_one_issue_per_repo(self):
 
         # Define all of my test data / desired results
 
@@ -50,6 +50,8 @@ class TestGithubWrapper:
             issue.labels = [mock_labels[3]]
         for i, repo in enumerate(mock_repos):
             repo.name = my_repo_names[i]
+            repo.private = False
+            repo.has_issues = True
             repo.get_issues.return_value = [mock_issues[i]]
 
         mock_session.get_organization.return_value = mock_organization
@@ -70,12 +72,14 @@ class TestGithubWrapper:
         github = GithubWrapper(my_settings, testing_session=mock_session)
         issues, repos = github.get_filtered_issues()
 
-        print repos
-        print issues
-        print mock_repos
-        print mock_issues
+        result_issues = [(i,) for i in mock_issues]
 
-        assert repos, issues == (mock_repos, mock_issues)
+        assert (issues, repos) == (result_issues, mock_repos)
+
+
+# TODO: Write a more complex test case with multiple issues per repo
+# The above will actually fail with multiple issues per repo, but the
+# logic is really onerous to write out, so I haven't done it.
 
 
 
