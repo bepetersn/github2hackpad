@@ -23,7 +23,7 @@ class GithubWrapper(object):
         else:
             self.session = Github(self.user, self.password)
 
-    def issues_by_repos(self, org='', projects=[],
+    def get_filtered_issues(self, org='', projects=[],
                             label=''):
 
         """
@@ -64,7 +64,7 @@ class GithubWrapper(object):
         except StandardError as e:
             print(e.message)
 
-        return filtered_repos, filtered_issues
+        return filtered_issues, filtered_repos
 
     def filter_repo_by_include(self, repo, include_repos):
         return repo.name in include_repos
@@ -79,14 +79,14 @@ class HackpadWrapper(object):
 
     """ This class provides the front front-end to the Hackpad API """
 
-    def __init__(self, subdomain, key, secret, testing_session=None):
-        self.subdomain = subdomain
-        self.key = key
-        self.secret = secret
+    def __init__(self, settings, testing_session=None):
+        self.subdomain = settings.config['hackpad_subdomain']
+        self.key = settings.config['hackpad_key']
+        self.secret = settings.config['hackpad_secret']
         if testing_session:
             self.session = testing_session
         else:
-            self.session = Hackpad(subdomain, key, secret)
+            self.session = Hackpad(self.subdomain, self.key, self.secret)
 
 
     def create_pad(self, title, content):
@@ -115,8 +115,9 @@ class Agenda(object):
         title = self.messages.write_title('', 'Active Projects', date)
         content = ""
         try:
-            issues = self.gh.issues_by_repos(self.settings)
-            self.messages.write_section(content, project, issues)
+            repos, issues = self.gh.issues_by_repos(self.settings)
+            for r in repos:
+                self.messages.write_section(content, r.name, issues)
         except StandardError as e:
             print(e)
 

@@ -55,14 +55,25 @@ class TestGithubWrapper:
         mock_session.get_organization.return_value = mock_organization
         mock_organization.get_repos.return_value = mock_repos
 
-        # Set Github-related settings; ignore Hackpad stuff
-        my_settings = Settings(path='/tmp/tmp_settings.yml')
-        my_settings.configure(my_user, my_pw, False, False)
+        # Set Github-related settings
+        my_settings = Mock()
+        my_settings.config = {  
+            'github_user': my_user, 
+            'github_password': my_pw, 
+            'github_org': my_org,
+            'github_label': my_label,
+            'github_projects': my_repo_names,
+        }
 
         # Actually test the GithubWrapper class
 
         github = GithubWrapper(my_settings, testing_session=mock_session)
-        issues, repos = github.issues_by_repos()
+        issues, repos = github.get_filtered_issues()
+
+        print repos
+        print issues
+        print mock_repos
+        print mock_issues
 
         assert repos, issues == (mock_repos, mock_issues)
 
