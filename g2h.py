@@ -13,11 +13,11 @@ class GithubWrapper(object):
         of these based on org, repo, and label. """
 
     def __init__(self, settings, testing_session=None):
-        self.user = settings.config['github_user']
-        self.password = settings.config['github_password']
-        self.org = settings.config['github_org']
-        self.label = settings.config['github_label']
-        self.projects = settings.config['github_projects']
+        self.user = settings.get('github_user')
+        self.password = settings.get('github_password')
+        self.org = settings.get('github_org')
+        self.label = settings.get('github_label')
+        self.projects = settings.get('github_projects')
 
         if testing_session:
            self.session = testing_session
@@ -83,9 +83,9 @@ class HackpadWrapper(object):
     """ This class provides the front front-end to the Hackpad API """
 
     def __init__(self, settings, testing_session=None):
-        self.subdomain = settings.config['hackpad_subdomain']
-        self.key = settings.config['hackpad_key']
-        self.secret = settings.config['hackpad_secret']
+        self.subdomain = settings.get('hackpad_subdomain')
+        self.key = settings.get('hackpad_key')
+        self.secret = settings.get('hackpad_secret')
         if testing_session:
             self.session = testing_session
         else:
@@ -116,18 +116,22 @@ class Agenda(object):
         self.messages = messages
         self.settings = settings
 
+    def load_projects(self):
+        return self.settings.get('github_projects')
 
-    def generate(self, date=datetime.today(), projects=''):
+    def load_title(self):
+        return self.settings.get('hackpad_title')
 
-        if not projects:
-           self.projects = self.settings.get('github_projects')
+    def generate(self, date=datetime.today()):
 
-        title = self.messages.write_title('Active Projects', date)
-        content = ""
+        github_projects = self.load_projects()
+        hackpad_title = self.load_title()
+        title = self.messages.write_title(hackpad_title, date)
 
         try:
-            issues, repos = self.gh.get_filtered_issues(projects)
+            issues, repos = self.gh.get_filtered_issues(github_projects)
             if (issues and repos):
+                content = ""
                 for i, r in enumerate(repos):
                     content += self.messages.write_section(r.name, issues[i])
             else:
@@ -140,12 +144,9 @@ class Agenda(object):
         return title, content
         
 
-    def publish(self, date=datetime.today(), projects=''):
+    def publish(self, date=datetime.today()):
 
-        if not projects:
-            self.projects = self.settings.get('github_projects')
-
-        title, content = self.generate(date, projects)
+        title, content = self.generate(date)
         if (title and content):
 
             try:
@@ -236,9 +237,9 @@ class Settings(object):
             yaml.dump(self.config, f)
 
 
-    def set(self, github_user='', github_password='', hackpad_key='', 
-                    hackpad_secret='', hackpad_subdomain='', github_org='', 
-                    github_label='', github_projects=[]):
+    def set(self, github_user='', github_password='', github_org='', 
+            github_label='', github_projects=[], hackpad_key='', 
+            hackpad_secret='', hackpad_subdomain='', hackpad_title=''):
         
         # configure overrides that are set
         for k, v in locals().iteritems():
