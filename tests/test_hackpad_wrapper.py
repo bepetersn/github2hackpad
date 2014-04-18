@@ -1,5 +1,5 @@
 from mock import Mock, call
-from app import HackpadWrapper, Settings
+from g2h import HackpadWrapper, Settings
 
 class TestHackpadWrapper:
     

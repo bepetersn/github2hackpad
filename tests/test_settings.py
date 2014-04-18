@@ -1,12 +1,31 @@
 from mock import Mock, call
-from app import Settings
+from g2h import Settings
+from pytest import raises
+
+import os
 
 
 class TestSettings:
-    pass
 
-    # def test_save_settings(self):
+    """ Testing the settings class! """
 
-    #     s = Settings('/home/brian/.github2hackpad')
-    #     settings_dict = s.get_credentials()
-    #     settings_dict['hackpad_key']
+    def setup(self):
+        self.s = Settings('/tmp/tmp_settings.yml')
+
+    def teardown(self):
+        self.s.clear()
+        os.remove(self.s.path)
+
+    def test_configure_settings(self):
+        # setting github_user, then retrieving 
+        # it gives you back the same
+        self.s.configure(github_user='username')
+        result = self.s.get('github_user')
+        assert result == 'username'
+
+    def test_get_raises_not_configured(self):
+        # trying to get a github_user with a new
+        # settings before setting it raises an
+        # exception
+        with raises(Exception):
+            self.s.get('github_user')

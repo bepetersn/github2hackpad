@@ -1,5 +1,5 @@
 from mock import Mock, call
-from app import GithubWrapper, Settings
+from g2h import GithubWrapper, Settings
 
 
 class TestGithubWrapper:
