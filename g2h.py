@@ -3,7 +3,7 @@ from github.GithubException import GithubException
 from hackpad_api.hackpad import Hackpad
 from datetime import datetime
 
-import yaml, logging, sys
+import yaml, logging, sys, os
 
 
 class GithubWrapper(object):
@@ -223,10 +223,9 @@ class Settings(object):
 
     """ Credentials handling class; for to not write down my keys 
         and secrets in a public repository. """
+        
 
-    #TODO: replace "/home/brian" with the $HOME env var
-
-    def __init__(self, path='/home/brian/.github2hackpad'):
+    def __init__(self, path='%s/.github2hackpad' % os.environ['HOME']):
         self.path = path
         self.config = {}
 
