@@ -59,7 +59,7 @@ class GithubWrapper(object):
                     filtered_issues.append(tuple(result))
 
         except GithubException as e:
-            loggin.error("Problem with Github: %s" % e.message)
+            logging.error("Problem with Github: %s" % e.message)
             return False, False
         except StandardError as e:
             logging.error(e.message)
@@ -100,7 +100,7 @@ class HackpadWrapper(object):
                return result['padId']
 
         except StandardError as e:
-            logging.error("%s" % e.messages)
+            logging.error("%s" % e.message)
             return False
 
 
@@ -109,11 +109,13 @@ class Agenda(object):
     """ Synthesis class pulling formatting, credentials, and github,
         and hackpad classes together. """
 
+    # TODO: turn this into writer; give the hackpad more 
+    #       responsibility if possible
 
-    def __init__(self, hp, gh, messages, settings):
+    def __init__(self, hp, gh, formatter, settings):
         self.hp = hp
         self.gh = gh
-        self.messages = messages
+        self.formatter = formatter
         self.settings = settings
 
     def load_projects(self):
@@ -126,14 +128,14 @@ class Agenda(object):
 
         github_projects = self.load_projects()
         hackpad_title = self.load_title()
-        title = self.messages.write_title(hackpad_title, date)
+        title = self.formatter.write_title(hackpad_title, date)
 
         try:
             issues, repos = self.gh.get_filtered_issues(github_projects)
             if (issues and repos):
                 content = ""
                 for i, r in enumerate(repos):
-                    content += self.messages.write_section(r.name, issues[i])
+                    content += self.formatter.write_section(r.name, issues[i])
             else:
                 return False, False
 
@@ -163,44 +165,29 @@ class Agenda(object):
             return False
 
 
-class Messages(object):
-
-    # TODO: Rename this class to better describe what it does
+class Formatter(object):
 
     """ Formatting handling class """
 
+    # TODO: turn this into github2hackpad formatter
 
-    def __init__(self, formatting={}):
+    def __init__(self, settings):
 
-        # TODO: Merge this with part of messages with settings
-        self.formatting = formatting
-        self.section_sep = self.format_param('section_sep')
-        self.item_sep = self.format_param('item_sep')
-        self.heading_lg = self.format_param('heading_lg')
-        self.heading_md = self.format_param('heading_md')
-        self.heading_sm = self.format_param('heading_sm')
-        self.item_slice_point = self.format_param('item_slice_point')
-
-
-    def format_param(self, param, default=''):
-        try:
-            value = formatting[param]
-        except LookupError as e:
-            pass
-        finally:
-            return default
+        self.settings = settings
+        self.section_sep = self.settings.get('format_section_sep')
+        self.item_sep = self.settings.get('format_item_sep')
 
 
     def write_section(self, title, items):
-        section = "%s\n" % title
+        section = "%s%s" % (title, self.section_sep)
         for item in items:
             item = self.unpack_github_item(item)
-            section += "- %s\n" % item[:120]
+            section += "- %s%s" % (item, self.item_sep)
         return section
 
 
-    def write_title(self, full_name, date):
-        return "%s: Week of %s" % (full_name, self.format_date(date))
+    def write_title(self, title, date):
+        return "%s: Week of %s" % (title, self.format_date(date))
 
 
     def unpack_github_item(self, item):
@@ -208,7 +195,17 @@ class Messages(object):
 
 
     def format_date(self, d):
-        return d.strftime('%B %dth, %Y')
+
+        if d.day in (1, 21, 31):
+            date_suffix = 'st'
+        elif d.day in (2, 22):
+            date_suffix = 'nd'
+        elif d.day in (3, 23):
+            date_suffix = 'rd'
+        else:
+            date_suffix = 'th'
+
+        return d.strftime('%B %d{0}, %Y'.format(date_suffix))
 
 
 class Settings(object):
@@ -229,6 +226,8 @@ class Settings(object):
                     self.config = file_contents
                 self.set(config)
         except IOError:
+            # currently should only happen if this
+            # file is missing
             self.clear()
 
 
@@ -236,10 +235,14 @@ class Settings(object):
         with open(self.path, 'w') as f:
             yaml.dump(self.config, f)
 
+    # TODO: make a configure method that uses clint to interactively 
+    #       get these values
+
 
     def set(self, github_user='', github_password='', github_org='', 
             github_label='', github_projects=[], hackpad_key='', 
-            hackpad_secret='', hackpad_subdomain='', hackpad_title=''):
+            hackpad_secret='', hackpad_subdomain='', hackpad_title='',
+            format_section_sep='\n', format_item_sep='\n'):
         
         # configure overrides that are set
         for k, v in locals().iteritems():
@@ -251,11 +254,11 @@ class Settings(object):
     def get(self, var, default=''):
         try:
             return self.config[var]
-        except Exception('%s var is not set!' % var) as e:
+        except LookupError as e:
             if default:
                 return default
             else:
-                raise e
+                raise Exception('%s var is not set!' % var)
 
 
     def clear(self):
@@ -269,7 +272,8 @@ def main():
     agenda = Agenda(
         HackpadWrapper(settings), 
         GithubWrapper(settings), 
-        Messages(), settings
+        Formatter(settings), 
+        settings
     )
     agenda.publish()
 

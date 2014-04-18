@@ -71,15 +71,17 @@ class TestGithubWrapper:
 
         github = GithubWrapper(my_settings, testing_session=mock_session)
         issues, repos = github.get_filtered_issues()
-
         result_issues = [(i,) for i in mock_issues]
 
         assert (issues, repos) == (result_issues, mock_repos)
 
 
 # TODO: Write a more complex test case with multiple issues per repo
-# The above will actually fail with multiple issues per repo, but the
-# logic is really onerous to write out, so I haven't done it.
+# The above test will fail with multiple issues per repo, but the
+# logic for that is really onerous to write out, so I haven't done it.
+# 
+# To be clear, I BELIEVE the GithubWrapper is functional (appears to work
+# in test runs), I just don't have sufficient testing here to prove it.
 
 
 
