@@ -19,7 +19,7 @@ class TestSettings:
     def test_configure_settings(self):
         # setting github_user, then retrieving 
         # it gives you back the same
-        self.s.configure(github_user='username')
+        self.s.set(github_user='username')
         result = self.s.get('github_user')
         assert result == 'username'
 

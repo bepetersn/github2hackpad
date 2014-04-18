@@ -49,17 +49,13 @@ class GithubWrapper(object):
             all_repos = org.get_repos()
 
             for r in all_repos:
-                logging.debug("found repo: %s" % r.name)
                 if self.filter_repo_by_include(r, self.projects):
                     filtered_repos.append(r)
 
             for r in filtered_repos:
-                logging.debug("trying repo: %s" % r.name)
                 if r.has_issues and not r.private:
-                    logging.debug("included repo: %s" % r.name)
                     result = self.filter_issues_by_label(
                                     r.get_issues(), self.label)
-                    logging.debug("issues: %s" % str(list(result)))
                     filtered_issues.append(tuple(result))
 
         except GithubException as e:
@@ -69,7 +65,6 @@ class GithubWrapper(object):
             logging.error(e.message)
             return False, False
 
-        # logging.debug([r.name for r in filtered_repos])
         return filtered_issues, filtered_repos
 
     def filter_repo_by_include(self, repo, include_repos):
@@ -122,20 +117,16 @@ class Agenda(object):
         self.settings = settings
 
 
-    def load_projects_setting(self):
-        return self.settings.config['github_projects']
-
-
     def generate(self, date=datetime.today(), projects=''):
 
         if not projects:
-           self.projects = self.load_projects_setting()
+           self.projects = self.settings.get('github_projects')
 
         title = self.messages.write_title('Active Projects', date)
         content = ""
 
         try:
-            issues, repos = self.gh.get_filtered_issues(self.settings, projects)
+            issues, repos = self.gh.get_filtered_issues(projects)
             if (issues and repos):
                 for i, r in enumerate(repos):
                     content += self.messages.write_section(r.name, issues[i])
@@ -152,7 +143,7 @@ class Agenda(object):
     def publish(self, date=datetime.today(), projects=''):
 
         if not projects:
-            self.projects = self.load_projects_setting()
+            self.projects = self.settings.get('github_projects')
 
         title, content = self.generate(date, projects)
         if (title and content):
@@ -223,25 +214,21 @@ class Settings(object):
 
     """ Credentials handling class; for to not write down my keys 
         and secrets in a public repository. """
-        
 
-    def __init__(self, path='%s/.github2hackpad' % os.environ['HOME']):
+
+    def __init__(self, path='%s/.github2hackpad' % os.environ['HOME'],
+                    config={}):
         self.path = path
         self.config = {}
 
         try:
             with open(self.path, 'r') as f:
-                self.config = yaml.load(f)
-                self.configure()
+                file_contents = yaml.load(f)
+                if file_contents:
+                    self.config = file_contents
+                self.set(config)
         except IOError:
-            try:
-                # create empty file
-                open(self.path, 'w').close()
-            except IOError as e:
-                pass
-        finally:
-            if self.config is None:
-                self.config = {}
+            self.clear()
 
 
     def save(self):
@@ -249,37 +236,33 @@ class Settings(object):
             yaml.dump(self.config, f)
 
 
-    def configure(self, github_user='', github_password='', hackpad_key='', 
-                    hackpad_secret='', hackpad_subdomain='', github_org='sc3', 
+    def set(self, github_user='', github_password='', hackpad_key='', 
+                    hackpad_secret='', hackpad_subdomain='', github_org='', 
                     github_label='', github_projects=[]):
         
-        # Fall back to settings if no overrides are set
-        # TODO: Throw an error if no overrides or settings; 
-        # also provide a convenience function for access.
-        if github_user:
-            self.config['github_user'] = github_user
-        if github_password:
-            self.config['github_password'] = github_password
-        if hackpad_key:
-            self.config['hackad_key'] = hackpad_key 
-        if hackpad_secret:
-            self.config['hackpad_secret'] = hackpad_secret
-
-        # TODO: take out the hardcoded defaults, even though this
-        # isn't sensitive info.
-        self.config['github_org'] = github_org
-        self.config['github_label'] = github_label
-        self.config['github_projects'] = github_projects
-
+        # configure overrides that are set
+        for k, v in locals().iteritems():
+            if v:
+                self.config[k] = v
         self.save()
 
 
-def main(debug=False):
+    def get(self, var, default=''):
+        try:
+            return self.config[var]
+        except Exception('%s var is not set!' % var) as e:
+            if default:
+                return default
+            else:
+                raise e
 
-    # TODO: make this main function as skinny as possible
 
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
+    def clear(self):
+        # create empty file
+        open(self.path, 'w').close()
+
+
+def main():
 
     settings = Settings()
     agenda = Agenda(
@@ -290,7 +273,4 @@ def main(debug=False):
     agenda.publish()
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == '--debug':
-        main(debug=True)
-    else:
-        main()
+    main()
